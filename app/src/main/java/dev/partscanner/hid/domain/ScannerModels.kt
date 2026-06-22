@@ -40,6 +40,27 @@ enum class HidConnectionState {
     CONNECTED,
 }
 
+enum class HidSpeed(
+    val label: String,
+    val keyDownMillis: Long,
+    val interKeyGapMillis: Long,
+) {
+    FAST("Fast", 0L, 0L),
+    NORMAL("Normal", 1L, 0L),
+    COMPATIBLE("Compatible", 1L, 1L),
+}
+
+enum class BarcodeSendMode(val label: String) {
+    FULL_TEXT("Full"),
+    PARSED_MPN("MPN"),
+}
+
+data class ParsedBarcode(
+    val distributor: String,
+    val manufacturerPartNumber: String?,
+    val summary: String,
+)
+
 enum class ScannerBarcodeFormat(val label: String) {
     AZTEC("Aztec"),
     CODABAR("Codabar"),
@@ -74,6 +95,10 @@ data class ScannerUiState(
     val showHostChooser: Boolean = false,
     val hidConnectionState: HidConnectionState = HidConnectionState.DISCONNECTED,
     val enabledBarcodeFormats: Set<ScannerBarcodeFormat> = ScannerBarcodeFormat.defaultEnabled,
+    val hidSpeed: HidSpeed = HidSpeed.NORMAL,
+    val sendMode: BarcodeSendMode = BarcodeSendMode.FULL_TEXT,
+    val parsedBarcode: ParsedBarcode? = null,
+    val isScanLocked: Boolean = false,
     val isSending: Boolean = false,
 ) {
     val isHidConnected: Boolean get() = hidConnectionState == HidConnectionState.CONNECTED

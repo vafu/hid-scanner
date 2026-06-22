@@ -1,42 +1,36 @@
 # Refinement Notes
 
-## Near-Term Improvements
+## Current Backlog
 
-- Add a visible scan freeze / lock button. This would make selecting from dense
-  labels easier than relying only on stable tracking.
-- Add a small HID speed setting:
-  - fast: `0 ms` gap, risky
-  - normal: `1 ms` key-down, current default
-  - compatible: `1 ms` key-down + `1 ms` inter-key gap
-- Add parser previews for known distributors:
+- Replace remaining status strings with explicit UI state:
+  - scanner/camera state
+  - permission state
+  - HID registration state
+- Move CameraX and ML Kit binding behind a `BarcodeDetector` interface before
+  adding alternate detector implementations or deeper test coverage.
+- Move HID profile callbacks into a reducer/state-machine if connection edge
+  cases keep growing.
+- Add stronger parser coverage for real distributor labels:
   - Mouser ANSI / ECIA labels
   - LCSC JSON-ish labels
   - Digi-Key labels
-- Add a "send parsed MPN only" mode as a fallback, but keep full raw normalized
-  output as the default because SmartParts can extract quantity and supplier SKU.
+- Add `StableBarcodeTracker` tests after splitting geometry away from Android
+  `RectF` or adding Robolectric.
+- Add screenshot tests after the UI settles.
 
-## Architecture Ideas
+## Completed
 
-- Replace plain status text with:
-  - `BluetoothState`
-  - `ScannerState`
-  - `PermissionState`
-- Introduce repositories if the app starts storing settings.
-- Move CameraX binding behind a `BarcodeDetector` interface if we add tests or
-  alternate detection engines.
-- Move HID profile callbacks into a reducer/state-machine if connection edge
-  cases keep growing.
-
-## Testing Ideas
-
-- Unit-test `BarcodeTextNormalizer` with raw GS / RS / EOT byte samples.
-- Unit-test `StableBarcodeTracker`:
-  - detections survive the configured number of missed frames
-  - detections are removed after the miss budget is exceeded
-  - reappearing identities get a fresh smoothing filter
-  - selection identity remains stable across jittery boxes
-- Add screenshot tests only after the UI stabilizes; the current layout is still
-  intentionally easy to change.
+- Add a visible scan freeze / lock control.
+- Add HID speed presets:
+  - fast: `0 ms` key-down, `0 ms` inter-key gap
+  - normal: `1 ms` key-down, `0 ms` inter-key gap
+  - compatible: `1 ms` key-down, `1 ms` inter-key gap
+- Add parser preview and an MPN-only send mode with full normalized output as
+  the default.
+- Persist scanner settings through a small settings repository.
+- Add barcode format toggles.
+- Add missed-frame tolerance to `StableBarcodeTracker`.
+- Add unit tests for `BarcodeTextNormalizer` and basic parser heuristics.
 
 ## Known External Constraint
 

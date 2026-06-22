@@ -13,6 +13,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import dev.partscanner.hid.domain.BluetoothHost
+import dev.partscanner.hid.domain.HidSpeed
 import dev.partscanner.hid.domain.HidConnectionState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -155,7 +156,7 @@ class BluetoothHidManager(
         }
     }
 
-    suspend fun typeLine(value: String) = withContext(ioDispatcher) {
+    suspend fun typeLine(value: String, speed: HidSpeed) = withContext(ioDispatcher) {
         val host = connectedHost
         val profile = hidDevice
         if (host == null || profile == null) {
@@ -165,10 +166,10 @@ class BluetoothHidManager(
         }
         for (char in value) {
             HidKeyMapper.fromChar(char)?.let { stroke ->
-                sendKey(profile, host, stroke)
+                sendKey(profile, host, stroke, speed)
             }
         }
-        sendKey(profile, host, KeyStroke(0, 0x28))
+        sendKey(profile, host, KeyStroke(0, 0x28), speed)
     }
 
     @SuppressLint("MissingPermission")
@@ -201,12 +202,18 @@ class BluetoothHidManager(
     }
 
     @SuppressLint("MissingPermission")
-    private fun sendKey(profile: BluetoothHidDevice, host: BluetoothDevice, stroke: KeyStroke) {
+    private fun sendKey(
+        profile: BluetoothHidDevice,
+        host: BluetoothDevice,
+        stroke: KeyStroke,
+        speed: HidSpeed,
+    ) {
         val down = byteArrayOf(stroke.modifier, 0, stroke.usage, 0, 0, 0, 0, 0)
         val up = byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0)
         val downSent = profile.sendReport(host, 0, down)
-        Thread.sleep(KEY_DOWN_MS)
+        if (speed.keyDownMillis > 0) Thread.sleep(speed.keyDownMillis)
         val upSent = profile.sendReport(host, 0, up)
+        if (speed.interKeyGapMillis > 0) Thread.sleep(speed.interKeyGapMillis)
         if (!downSent || !upSent) {
             _status.value = "HID send failed"
         }
@@ -225,7 +232,6 @@ class BluetoothHidManager(
     }
 
     private companion object {
-        const val KEY_DOWN_MS = 1L
         const val SUBCLASS_KEYBOARD: Byte = 0x40
 
         val KEYBOARD_DESCRIPTOR = byteArrayOf(

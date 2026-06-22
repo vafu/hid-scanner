@@ -22,7 +22,9 @@ The app is vibecoded and has not been reviewed yet. Expect the worst
 - Data Matrix, QR, Code 128, and Code 39 enabled.
 - Multi-barcode overlay with tap selection.
 - Stable detection tracking with One Euro filtering.
-- Raw text and raw-byte hex display.
+- Scan lock for selecting from dense labels.
+- Parser preview and optional parsed-MPN send mode.
+- Configurable barcode formats and HID send speed.
 - Android Bluetooth HID keyboard output.
 - US keyboard HID keymap for printable ASCII plus `Enter`.
 

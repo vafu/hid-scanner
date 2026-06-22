@@ -67,8 +67,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import dev.partscanner.hid.barcode.BarcodeTextNormalizer
+import dev.partscanner.hid.domain.BarcodeSendMode
 import dev.partscanner.hid.domain.BluetoothHost
 import dev.partscanner.hid.domain.DetectedBarcode
+import dev.partscanner.hid.domain.HidSpeed
 import dev.partscanner.hid.domain.HidConnectionState
 import dev.partscanner.hid.domain.ScannerBarcodeFormat
 import dev.partscanner.hid.domain.ScannerUiState
@@ -84,6 +86,9 @@ fun ScannerScreen(
     onConnect: () -> Unit,
     onMakeDiscoverable: () -> Unit,
     onBarcodeFormatEnabledChanged: (ScannerBarcodeFormat, Boolean) -> Unit,
+    onHidSpeedSelected: (HidSpeed) -> Unit,
+    onSendModeSelected: (BarcodeSendMode) -> Unit,
+    onToggleScanLock: () -> Unit,
     onSend: () -> Unit,
     onDismissHostChooser: () -> Unit,
     onHostSelected: (BluetoothHost) -> Unit,
@@ -125,7 +130,7 @@ fun ScannerScreen(
             )
 
             SelectedBarcodeBanner(
-                text = state.selectedBarcode?.let { BarcodeTextNormalizer.normalizeForKeyboardWedge(it) },
+                text = state.selectedOutputText(),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
@@ -146,6 +151,15 @@ fun ScannerScreen(
                     tint = Color.White,
                 )
             }
+
+            ScanLockButton(
+                locked = state.isScanLocked,
+                onToggle = onToggleScanLock,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(top = 10.dp, start = 12.dp),
+            )
 
             ScannerActionButton(
                 selectedBarcodeAvailable = state.selectedBarcode != null,
@@ -173,6 +187,8 @@ fun ScannerScreen(
                 onConnect = onConnect,
                 onMakeDiscoverable = onMakeDiscoverable,
                 onBarcodeFormatEnabledChanged = onBarcodeFormatEnabledChanged,
+                onHidSpeedSelected = onHidSpeedSelected,
+                onSendModeSelected = onSendModeSelected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -188,6 +204,15 @@ fun ScannerScreen(
             onDismiss = onDismissHostChooser,
             onHostSelected = onHostSelected,
         )
+    }
+}
+
+private fun ScannerUiState.selectedOutputText(): String? {
+    val barcode = selectedBarcode ?: return null
+    return when (sendMode) {
+        BarcodeSendMode.FULL_TEXT -> BarcodeTextNormalizer.normalizeForKeyboardWedge(barcode)
+        BarcodeSendMode.PARSED_MPN -> parsedBarcode?.manufacturerPartNumber
+            ?: BarcodeTextNormalizer.normalizeForKeyboardWedge(barcode)
     }
 }
 
@@ -232,6 +257,27 @@ private fun SelectedBarcodeBanner(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ScanLockButton(
+    locked: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = if (locked) Color(0xEE4FDC78) else Color.Black.copy(alpha = 0.48f),
+        contentColor = if (locked) Color(0xFF06130B) else Color.White,
+        shape = CircleShape,
+        modifier = modifier.clickable(onClick = onToggle),
+    ) {
+        Text(
+            text = if (locked) "Lock" else "Live",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+        )
     }
 }
 
@@ -313,6 +359,8 @@ private fun ScannerControlPane(
     onConnect: () -> Unit,
     onMakeDiscoverable: () -> Unit,
     onBarcodeFormatEnabledChanged: (ScannerBarcodeFormat, Boolean) -> Unit,
+    onHidSpeedSelected: (HidSpeed) -> Unit,
+    onSendModeSelected: (BarcodeSendMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var discoverableRequested by rememberSaveable { mutableStateOf(false) }
@@ -369,10 +417,92 @@ private fun ScannerControlPane(
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
 
+        SendSettings(
+            state = state,
+            onHidSpeedSelected = onHidSpeedSelected,
+            onSendModeSelected = onSendModeSelected,
+        )
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+
         BarcodeFormatSettings(
             enabledFormats = state.enabledBarcodeFormats,
             onBarcodeFormatEnabledChanged = onBarcodeFormatEnabledChanged,
         )
+    }
+}
+
+@Composable
+private fun SendSettings(
+    state: ScannerUiState,
+    onHidSpeedSelected: (HidSpeed) -> Unit,
+    onSendModeSelected: (BarcodeSendMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "Send",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        OptionRow(
+            label = "Mode",
+            options = BarcodeSendMode.entries,
+            selected = state.sendMode,
+            labelOf = { it.label },
+            onSelected = onSendModeSelected,
+        )
+
+        OptionRow(
+            label = "Speed",
+            options = HidSpeed.entries,
+            selected = state.hidSpeed,
+            labelOf = { it.label },
+            onSelected = onHidSpeedSelected,
+        )
+
+        val parsed = state.parsedBarcode
+        if (parsed != null) {
+            Text(
+                text = parsed.summary,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = Color(0xFFB7BDC8),
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> OptionRow(
+    label: String,
+    options: List<T>,
+    selected: T,
+    labelOf: (T) -> String,
+    onSelected: (T) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFB7BDC8),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { option ->
+                Button(
+                    onClick = { onSelected(option) },
+                    enabled = option != selected,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = labelOf(option),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
     }
 }
 
