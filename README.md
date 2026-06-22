@@ -3,6 +3,10 @@
 Android Kotlin / Jetpack Compose app for using a phone camera as a Bluetooth HID
 keyboard-wedge barcode scanner.
 
+## Disclaimer
+
+The app is vibecoded and has not been reviewed yet. Expect the worst
+
 ## Goal
 
 - Scan distributor labels with the phone camera.
