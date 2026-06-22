@@ -19,10 +19,11 @@ object BarcodeParser {
         val mpn = listOf("mpn", "mfrPartNumber", "manufacturerPartNumber", "partNumber")
             .firstNotNullOfOrNull { key -> jsonField(raw, key) }
             ?.takeIf { it.isNotBlank() }
+            ?: return null
         return ParsedBarcode(
             distributor = if (lower.contains("lcsc")) "LCSC" else "JSON label",
             manufacturerPartNumber = mpn,
-            summary = listOfNotNull("JSON-ish label", mpn?.let { "MPN $it" }).joinToString(" - "),
+            summary = listOf("JSON-ish label", "MPN $mpn").joinToString(" - "),
         )
     }
 
